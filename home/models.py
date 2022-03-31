@@ -6,6 +6,21 @@ from django.core import files
 from django.db import models
 
 
+
+class Category(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+
+    def __str__(self):
+        return self.name
+
+    def to_json(self):
+        this_c = {}
+        this_c['id'] = self.id
+        this_c['title'] = self.name
+        this_c['foods'] = [f.to_json() for f in self.food_set.all()]
+        return this_c
+
+
 class Food(models.Model):
     name = models.CharField(max_length=50, unique=True)
     about  = models.CharField(max_length=200)
@@ -13,7 +28,8 @@ class Food(models.Model):
     price = models.FloatField()
     slug = models.SlugField(unique=True)
     image  = models.ImageField(upload_to="foods/")
-    # TODO: add category
+    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+
 
     def __str__(self):
         return f"{self.name}"
@@ -61,6 +77,7 @@ class Food(models.Model):
             'slug': self.slug,
             'url': f"/foods/{self.slug}",
             'image': self.image.url,
+            'category': self.category.id,
         }
         return data
 

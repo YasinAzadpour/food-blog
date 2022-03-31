@@ -7,3 +7,6 @@ class FoodAdmin(admin.ModelAdmin):
 
     list_display = ('name', 'price', 'cal')
     search_fields = ('name',)
+
+
+admin.site.register(Category)
