@@ -11,6 +11,7 @@ class FoodAdmin(admin.ModelAdmin):
 
 admin.site.register(Category)
 admin.site.register(AboutUs)
+admin.site.register(Cart)
 
 
 @admin.register(Link)

@@ -7,6 +7,17 @@ from django.db import models
 from phonenumber_field.modelfields import PhoneNumberField
 
 
+class Cart(models.Model):
+    user = models.ForeignKey('accounts.MyUser', on_delete=models.CASCADE)
+    delivered = models.BooleanField(default=False)
+    paid = models.BooleanField(default=False)
+    address = models.CharField(max_length=100, default='')
+    # TODO: use map
+
+    def __str__(self):
+        return f"{self.user.phone}({'delivered' if self.delivered else 'not-delivered'})"
+
+
 class Category(models.Model):
     name = models.CharField(max_length=50, unique=True)
 
