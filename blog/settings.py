@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'phonenumber_field',
     'accounts',
 ]
 
@@ -134,3 +135,6 @@ FOOD_IMAGE_SIZE = (1280,720)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+
+# Custom user model
+AUTH_USER_MODEL = 'accounts.MyUser'
