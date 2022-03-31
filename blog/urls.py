@@ -22,9 +22,10 @@ from django.urls.conf import include
 
 
 urlpatterns = [
-    # path('/', include('home.urls')),
+    path('/', include('home.urls')),
     path('admin/', admin.site.urls),
-    # path('accounts/', include('accounts.urls')),
+    path('api/', include('api.urls')),
+    path('accounts/', include('accounts.urls')),
     *staticfiles_urlpatterns(),
     *static(settings.MEDIA_URL,document_root=settings.MEDIA_ROOT),
 ]
