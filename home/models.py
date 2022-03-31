@@ -18,6 +18,15 @@ class Cart(models.Model):
         return f"{self.user.phone}({'delivered' if self.delivered else 'not-delivered'})"
 
 
+class Order(models.Model):
+    cart = models.ForeignKey('home.Cart', on_delete=models.CASCADE)
+    food = models.ForeignKey('home.Food', on_delete=models.CASCADE)
+    quantity = models.IntegerField()
+
+    def __str__(self):
+        return f"{self.cart.user.phone}[{self.food.name}({self.quantity})]"
+
+
 class Category(models.Model):
     name = models.CharField(max_length=50, unique=True)
 
@@ -39,7 +48,7 @@ class Food(models.Model):
     price = models.FloatField()
     slug = models.SlugField(unique=True)
     image  = models.ImageField(upload_to="foods/")
-    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    category = models.ForeignKey('home.Category', on_delete=models.CASCADE)
 
 
     def __str__(self):
