@@ -14,6 +14,9 @@ admin.site.register(AboutUs)
 admin.site.register(Cart)
 admin.site.register(Order)
 
+@admin.register(Feedback)
+class FeedbackAdmin(admin.ModelAdmin):
+    list_display = ('user', 'date')
 
 @admin.register(Link)
 class LinkAdmin(admin.ModelAdmin):

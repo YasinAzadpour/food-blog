@@ -154,3 +154,24 @@ class AboutUs(models.Model):
             
         except:
             return None
+
+
+class Feedback(models.Model):
+    user = models.ForeignKey('accounts.MyUser', on_delete=models.CASCADE)
+    text = models.CharField(max_length=200)
+    date = models.DateTimeField(auto_now=True)
+    is_read =  models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.user.phone.as_e164}"
+
+    def to_json(self):
+        data = {
+            'id': self.id,
+            'text': self.text,
+            'user__id': self.user.id,
+            'user__name': self.user.name,
+            'user__phone': self.user.phone.as_e164,
+            'user__profile': self.user.profile.url,
+        }
+        return data
