@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta, timezone
 
 import cv2
 from django.conf import settings
@@ -7,7 +8,9 @@ from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.models import AbstractUser
 from django.core import files
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
+from django.utils.crypto import get_random_string
 from django.utils.translation import gettext_lazy as _
 from phonenumber_field.modelfields import PhoneNumberField
 
@@ -139,3 +142,39 @@ class MyUser(AbstractUser):
     def send_message(msg):
         pass
 
+
+class Token(models.Model):
+    user = models.ForeignKey(MyUser, on_delete=models.CASCADE)
+    code = models.CharField(max_length=10)
+    date = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.phone}"
+
+    @classmethod
+    def evalute_code(cls, code, user):
+        try:
+            codes = cls.objects.filter(user=user)
+            this_code = codes.get(code=code)
+            codes.delete()
+            now = datetime.now(tz=timezone.utc)
+            return "ok" if now - this_code.date < timedelta(minutes=1) else "Code expired."
+
+        except ObjectDoesNotExist:
+            return "Invalid code."
+
+        except:
+            return None
+        
+    @classmethod
+    def gen_key(cls, user, length=10):
+        try:
+            return cls.objects.create(user=user, code=get_random_string(length))
+        except:
+            return None
+
+    @classmethod
+    def send_to_user(cls, user):
+        token  = cls.gen_key(user)
+        # send message ...
+        return token
