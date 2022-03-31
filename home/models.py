@@ -4,7 +4,7 @@ import cv2
 from django.conf import settings
 from django.core import files
 from django.db import models
-
+from phonenumber_field.modelfields import PhoneNumberField
 
 
 class Category(models.Model):
@@ -81,3 +81,27 @@ class Food(models.Model):
         }
         return data
 
+
+class Link(models.Model):
+    name = models.CharField(unique=True, max_length=50)
+    url = models.URLField(blank=True, null=True)
+    tel = PhoneNumberField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.name}"
+
+    def to_json(self):
+        data = {"id": self.id}
+        if self.url:
+            data['url'] = self.url
+        else:
+            data['tel'] = self.tel.as_e164
+        
+        return data
+
+    @classmethod
+    def get_tel(cls):
+        try:
+            return cls.objects.get(name='tel').tel.as_e164
+        except:
+            return ""
