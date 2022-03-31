@@ -10,6 +10,7 @@ class FoodAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Category)
+admin.site.register(AboutUs)
 
 
 @admin.register(Link)

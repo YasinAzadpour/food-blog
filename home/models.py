@@ -105,3 +105,32 @@ class Link(models.Model):
             return cls.objects.get(name='tel').tel.as_e164
         except:
             return ""
+
+
+class AboutUs(models.Model):
+    title = models.CharField(max_length=50)
+    image =  models.ImageField(upload_to="about/")
+    text = models.TextField(max_length=100000)
+    address = models.CharField(max_length=100, default='')
+    # TODO: Use map
+
+    def __str__(self):
+        return f"{self.title}"
+
+    def to_json(self):
+        data = {
+            'id': self.id,
+            'title': self.title,
+            'image': self.image.url,
+            'text': self.text,
+            'address': self.address,
+        }
+        return data
+
+    @classmethod
+    def get_last(cls):
+        try:
+            return cls.objects.last().to_json()
+            
+        except:
+            return None
