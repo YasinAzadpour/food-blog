@@ -1,0 +1,106 @@
+
+*{
+  -webkit-tap-highlight-color: transparent;
+}
+::selection {
+  color: #4c00ff;
+  background: #4c00ff3a;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  border-radius: 100px;
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 10px;
+  background:#72727285;
+}
+::-webkit-scrollbar-button {
+  visibility: hidden;
+}
+p:empty::before {
+  content: attr(data-placeholder);
+  opacity: .5;
+}
+* {
+  transition: all 250ms ease-in-out;
+}
+.none {
+  display: none;
+}
+
+#more.active span:nth-child(2) {
+  transform: translateX(2rem);
+  opacity: 0;
+}
+#more.active span:first-child {
+  transform: rotate(45deg) translate(4px, 11px);
+}
+#more.active span:last-child {
+  transform: rotate(-45deg) translate(4px, -11px);
+}
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible {
+  /* border: none; */
+  outline: none;
+}
+/* Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.loader,
+.loader:after {
+  border-radius: 50%;
+  width: 10em;
+  height: 10em;
+}
+.loader {
+  /* font-size: 3px; */
+  text-indent: -9999em;
+  border-top: 1.1em solid rgba(255, 255, 255, 0.2);
+  border-right: 1.1em solid rgba(255, 255, 255, 0.2);
+  border-bottom: 1.1em solid rgba(255, 255, 255, 0.2);
+  border-left: 1.1em solid #ffffff;
+  -webkit-transform: translateZ(0);
+  -ms-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-animation: load8 1.1s infinite linear;
+  animation: load8 1.1s infinite linear;
+}
+@-webkit-keyframes load8 {
+  0% {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+@keyframes load8 {
+  0% {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  100% {
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+input ~ span {
+  opacity: 0;
+}
+
+input:invalid:focus ~ span{
+  opacity: 1 !important;
+}
