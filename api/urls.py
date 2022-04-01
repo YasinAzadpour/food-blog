@@ -10,4 +10,11 @@ urlpatterns = [
     path('accounts/edit', edit_profile, name='sign_up'),
     path('accounts/get-token', get_token, name='get_token'),
     path('accounts/resend-token', resend_token, name='resend_token'),
+    path('accounts/remove', remove_user, name='remove_user'),
+    path('foods/create', manage_foods, name='create_food'),
+    path('foods/remove', remove_food, name='remove_food'),
+    path('foods/update/<int:id>', manage_foods, name='update_food'),
+    path('category/new', create_categroy, name='create_category'),
+    path('feedbacks/mark-as-read', mark_feedback_as_read, name='mark_feedback_as_read'),
+    path('feedbacks/send', send_feedback, name='send_feedback'),
 ]

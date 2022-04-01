@@ -1,13 +1,15 @@
 import json
 
 import numpy as np
-from accounts.forms import SignUpForm, UpdateUser
+from accounts.forms import UpdateUser,SignUpForm
 from django.contrib.auth import get_user_model, login, authenticate
 from django.core.exceptions import ObjectDoesNotExist
 from django.http.response import JsonResponse
 from django.middleware import csrf
 from django.views.decorators.http import require_POST
 from accounts.models import Token
+from home.forms import *
+from home.models import *
 from PIL import Image
 
 
@@ -116,6 +118,108 @@ def edit_profile(request):
         return JsonResponse(data)
 
     return JsonResponse({'result': 'error'})
+
+
+@require_POST
+def send_feedback(request):
+    if request.user.is_authenticated:
+        form = FeedbackForm(request.POST|{"user": request.user})
+        if form.is_valid():
+            form.save()
+
+        return JsonResponse({'result': 'ok'})
+
+    return JsonResponse({'result': 'error'})
+
+@require_POST
+def mark_feedback_as_read(request):
+    try:
+        id = request.POST['id']
+
+        assert request.user.is_superuser
+        
+        feedback = Feedback.objects.get(id=id)
+        feedback.is_read = True
+        feedback.save()
+
+        feedbacks  = [f.to_json() for f in Feedback.objects.filter(is_read=False)]
+
+        return JsonResponse({'result': 'ok', 'feedbacks': feedbacks})
+
+    except:
+        return JsonResponse({'result': 'error'})
+
+
+@require_POST
+def create_categroy(request):
+    try:
+        assert request.user.is_superuser
+        form = CategoryForm(request.POST)
+
+        if form.is_valid():
+            form.save()
+
+        categories = list(Category.objects.all().values())
+        return JsonResponse(clean_json_errors(form)|{"categories": categories})
+        
+    except:
+        return JsonResponse({"result": "error"})
+   
+@require_POST
+def manage_foods(request, id=None):
+    if request.user.is_superuser:
+        
+        request.POST = extract_data_from_form(request.POST)
+        if id and Food.objects.filter(id=id).exists():
+                food = Food.objects.get(id=id)
+                form = FoodForm(request.POST, request.FILES, instance=food)
+
+        else:
+            form = FoodForm(request.POST, request.FILES)
+
+        if form.is_valid():
+            image = request.FILES.get('image')
+            food = form.save()
+            if image:
+                image = np.array(Image.open(image))
+                food.crop_image(image)
+                
+        all_foods = [f.to_json() for f in Food.objects.all()]
+        return JsonResponse(clean_json_errors(form)|{"allFoods": all_foods})
+
+    return JsonResponse({'result': 'error'})
+
+@require_POST
+def remove_food(request):
+    try:
+        id = request.POST['id']
+
+        assert request.user.is_superuser
+        
+        Food.objects.get(id=id).delete()
+        all_foods = [f.to_json() for f in Food.objects.all()]
+
+        return JsonResponse({'result': 'ok',"allFoods": all_foods})
+
+    except:
+        return JsonResponse({'result': 'error'})
+
+@require_POST
+def remove_user(request):
+    try:
+        id = request.POST['id']
+
+        assert request.user.is_superuser
+        assert request.user.id != id
+        
+        User.objects.get(id=id).delete()
+
+        allUsers = [u.to_json() for u in User.objects.all()]
+
+        return JsonResponse({'result': 'ok', 'allUsers': allUsers})
+
+    except:
+        return JsonResponse({'result': 'error'})
 
 def clean_json_errors(form):
 
