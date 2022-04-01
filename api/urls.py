@@ -14,7 +14,14 @@ urlpatterns = [
     path('foods/create', manage_foods, name='create_food'),
     path('foods/remove', remove_food, name='remove_food'),
     path('foods/update/<int:id>', manage_foods, name='update_food'),
+    path('foods/like', like, name='like_food'),
     path('category/new', create_categroy, name='create_category'),
     path('feedbacks/mark-as-read', mark_feedback_as_read, name='mark_feedback_as_read'),
     path('feedbacks/send', send_feedback, name='send_feedback'),
+    path('cart/pay', pay_cart, name='pay_cart'),
+    path('cart/deliver', deliver_cart, name='deliver_cart'),
+    path('buy', buy, name='buy'),
+    path('profile/<phone>', get_user_data, name='get_user_data'),
+    path('refresh', refresh, name='refresh'),
+
 ]
