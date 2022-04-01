@@ -13,7 +13,7 @@ from django.db import models
 from django.utils.crypto import get_random_string
 from django.utils.translation import gettext_lazy as _
 from phonenumber_field.modelfields import PhoneNumberField
-
+from home.models import Food,Order,Cart
 
 class UserManager(BaseUserManager):
     use_in_migrations = True
@@ -85,6 +85,7 @@ class MyUser(AbstractUser):
     email = models.EmailField(blank=True)
     profile = models.ImageField(upload_to="users/", blank=True)
     address = models.CharField(max_length=500, default='', blank=True)
+    liked_foods = models.ManyToManyField(Food, blank=True)
 
     objects = UserManager()
 
@@ -93,6 +94,63 @@ class MyUser(AbstractUser):
 
     def __str__(self):
         return f"{self.phone}"
+
+    @classmethod
+    def get_avalable_orders(cls):
+        '''
+        retrun all carts for admin users
+        '''
+
+        orders = []
+        for c in Cart.objects.filter(delivered=False, paid=True):
+            items = [item.food.to_json()|{"quantity":item.quantity} for item in Order.objects.filter(cart=c)]
+            this_order = {
+                "id": c.id,
+                "items": items,
+                "price": sum([i["price"]*i["quantity"] for i in items]),
+                "address": c.address,
+                "user": c.user.to_json(),
+            }
+            orders.append(this_order)
+            
+        return orders
+
+    def manage_orders(self, food_id, quantity):
+        if not self.cart.paid:
+            food = Food.objects.get(id=food_id)
+            order = Order.objects.get_or_create(food=food, cart=self.cart)[0]
+
+            if int(quantity) < 1:
+                order.delete()
+                
+            else:
+                order.quantity = quantity
+                order.save()
+                
+        return self.orders
+
+    @property
+    def orders(self):
+        orders = Order.objects.filter(cart__delivered=False, cart__user=self)
+        return orders
+
+    @property
+    def cart(self):
+        return Cart.objects.get_or_create(user=self, delivered=False)[0]
+
+    def like_food(self, id):
+        try:
+            food = self.liked_foods.get(id=id)
+            self.liked_foods.remove(food)
+            return True
+            
+        except ObjectDoesNotExist:
+            food = Food.objects.get(id=id)
+            self.liked_foods.add(food)
+            return True
+            
+        except:
+            return False
 
     def crop_profile(self, img, ColorConversionCode=cv2.COLOR_BGR2RGB):
         '''

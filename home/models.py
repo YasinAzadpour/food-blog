@@ -21,7 +21,7 @@ class Cart(models.Model):
 class Order(models.Model):
     cart = models.ForeignKey('home.Cart', on_delete=models.CASCADE)
     food = models.ForeignKey('home.Food', on_delete=models.CASCADE)
-    quantity = models.IntegerField()
+    quantity = models.IntegerField(default=1)
 
     def __str__(self):
         return f"{self.cart.user.phone}[{self.food.name}({self.quantity})]"
