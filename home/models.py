@@ -172,6 +172,6 @@ class Feedback(models.Model):
             'user__id': self.user.id,
             'user__name': self.user.name,
             'user__phone': self.user.phone.as_e164,
-            'user__profile': self.user.profile.url,
+            'user__profile': self.user.profile.url if self.user.profile else '',
         }
         return data

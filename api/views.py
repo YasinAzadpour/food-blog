@@ -124,11 +124,12 @@ def edit_profile(request):
 @require_POST
 def send_feedback(request):
     if request.user.is_authenticated:
-        form = FeedbackForm(request.POST|{"user": request.user})
+        request.POST = extract_data_from_form(request.POST|{"user": request.user})
+        form = FeedbackForm(request.POST)
         if form.is_valid():
             form.save()
 
-        return JsonResponse({'result': 'ok'})
+        return JsonResponse(clean_json_errors(form))
 
     return JsonResponse({'result': 'error'})
 
@@ -186,7 +187,7 @@ def manage_foods(request, id=None):
                 food.crop_image(image)
                 
         all_foods = [f.to_json() for f in Food.objects.all()]
-        return JsonResponse(clean_json_errors(form)|{"allFoods": all_foods})
+        return JsonResponse(clean_json_errors(form)|{"foods": all_foods})
 
     return JsonResponse({'result': 'error'})
 
@@ -200,7 +201,7 @@ def remove_food(request):
         Food.objects.get(id=id).delete()
         all_foods = [f.to_json() for f in Food.objects.all()]
 
-        return JsonResponse({'result': 'ok',"allFoods": all_foods})
+        return JsonResponse({'result': 'ok',"foods": all_foods})
 
     except:
         return JsonResponse({'result': 'error'})
@@ -237,57 +238,57 @@ def get_user_data(request, phone):
 
 @require_POST
 def refresh(request):
-    try:
-        user = request.user
-        data = {'main': {},'admin': {}, 'result': 'ok'}
-        data['main']['sitename'] = "Chef"
-        data['main']['tel'] = Link.get_tel()
-        data['main']['csrfmiddlewaretoken'] = csrf.get_token(request)
-        data['main']['links']= Link.get_tel()
-        data['main']['about'] = AboutUs.get_last()
-        data['main']['feedbacks']= [f.to_json() for f in Feedback.objects.filter(is_read=True)[:5]]
-        data['main']['reccomendeds']= [f.to_json() for f in Food.objects.all().order_by("-id")[:5]]
-        data['main']['foods'] = [c.to_json() for c in Category.objects.all()]
+    # try:
+    user = request.user
+    data = {'main': {},'admin': {}, 'result': 'ok'}
+    data['main']['sitename'] = "Chef"
+    data['main']['tel'] = Link.get_tel()
+    data['main']['csrfmiddlewaretoken'] = csrf.get_token(request)
+    data['main']['links']= Link.get_tel()
+    data['main']['about'] = AboutUs.get_last()
+    data['main']['feedbacks']= [f.to_json() for f in Feedback.objects.filter(is_read=True)[:5]]
+    data['main']['reccomendeds']= [f.to_json() for f in Food.objects.all().order_by("-id")[:5]]
+    data['main']['foods'] = [c.to_json() for c in Category.objects.all()]
 
-        if user.is_superuser:
-            data['admin']['categories']= [{"id":c.id, "name": c.name} for c in Category.objects.all()]
-            # TODO: use real data
-            data['admin']['income'] = {
-                "weak": {
-                    "data": [random.randint(.5e6,1e6) for _ in range(7)],
-                    "labels": ["SAT","SUN","MON","TUE","WED","THU","FRI"],
-                },
-                "month": {
-                    "data": [random.randint(1e6,5e6) for _ in range(30)],
-                    "labels": list(range(1,31))
-                },
-                "year": {
-                    "data": [random.randint(10e6,50e6) for _ in range(3)],
-                    "labels": [2019, 2020, 2021],
-                }
+    if user.is_superuser:
+        data['admin']['categories']= [{"id":c.id, "name": c.name} for c in Category.objects.all()]
+        # TODO: use real data
+        data['admin']['income'] = {
+            "weak": {
+                "data": [random.randint(.5e6,1e6) for _ in range(7)],
+                "labels": ["SAT","SUN","MON","TUE","WED","THU","FRI"],
+            },
+            "month": {
+                "data": [random.randint(1e6,5e6) for _ in range(30)],
+                "labels": list(range(1,31))
+            },
+            "year": {
+                "data": [random.randint(10e6,50e6) for _ in range(3)],
+                "labels": [2019, 2020, 2021],
             }
-            data['admin']['users'] = [u.to_json() for u in User.objects.exclude(is_superuser=True, id=request.user.id)]
-            data['admin']['feedbacks'] = [f.to_json() for f in Feedback.objects.filter(is_read=False)]
-            data['admin']['foods'] = [f.to_json() for f in Food.objects.all()]
-            data['admin']['orders'] = User.get_avalable_orders()
+        }
+        data['admin']['users'] = [u.to_json() for u in User.objects.exclude(is_superuser=True, id=request.user.id)]
+        data['admin']['feedbacks'] = [f.to_json() for f in Feedback.objects.filter(is_read=False)]
+        data['admin']['foods'] = [f.to_json() for f in Food.objects.all()]
+        data['admin']['orders'] = User.get_avalable_orders()
 
-        if request.user.is_authenticated:
-            data['main']['user'] = user.to_json()
-            data['main']['likedFoods'] = [f.id for f in user.liked_foods.all()]
-            data['main']['cart'] = [{"quantity": o.quantity}|o.food.to_json() for o in user.orders]
-            data['main']['cartPaid'] = user.cart.paid
+    if request.user.is_authenticated:
+        data['main']['user'] = user.to_json()
+        data['main']['likedFoods'] = [f.id for f in user.liked_foods.all()]
+        data['main']['cart'] = [{"quantity": o.quantity}|o.food.to_json() for o in user.orders]
+        data['main']['cartPaid'] = user.cart.paid
 
-        else:
-            data['main']['user'] = {}
-            data['main']['likedFoods'] = []
-            data['main']['cart'] = []
-            data['main']['cartPaid'] = False
+    else:
+        data['main']['user'] = {}
+        data['main']['likedFoods'] = []
+        data['main']['cart'] = []
+        data['main']['cartPaid'] = False
 
 
-        return JsonResponse(data)
+    return JsonResponse(data)
 
-    except:
-        return JsonResponse({'result': 'error'})
+    # except:
+    #     return JsonResponse({'result': 'error'})
 
 @require_POST
 def deliver_cart(request):

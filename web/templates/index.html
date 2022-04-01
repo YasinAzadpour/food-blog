@@ -21,6 +21,9 @@
     <script src="{% static 'JS/react/react-router-dom.min.js' %}"></script>
     <script src="{% static 'JS/markdown-react.js' %}" ></script>
     <script src="{% static 'JS/app.jsx' %}" type="text/jsx"></script>
+    {% if request.user.is_superuser %}
+      <script src="{% static 'JS/admin.jsx' %}" type="text/jsx"></script>
+    {% endif %}
   </head>
 
   <body class="overflow-x-hidden" id="root">
@@ -34,7 +37,29 @@
     const App = () => {
       const [adminData, setAdminData] =  useState({});
       const [data, setData] = useState({csrfmiddlewaretoken: "{{ csrfmiddlewaretoken }}"});
-      const [isReady, setIsReady] = useState(true);
+      const [isReady, setIsReady] = useState(false);
+
+      const updateApp = () =>{
+        $.ajax({
+          method: "POST",
+          url: "/api/refresh",
+          data: {csrfmiddlewaretoken: data.csrfmiddlewaretoken},
+          success: (r) => {
+            console.log(r);
+            setData(r.main);
+            setAdminData(r.admin);
+            setIsReady(true);
+          },
+        });
+      }
+
+      useEffect(() => {
+        updateApp();
+        setInterval(() => {
+          updateApp();
+        }, (1000 * 10) );
+      },[1]);
+
 
       return (
         <Router>
@@ -42,6 +67,54 @@
           {isReady
           ?(<Context.Provider value={ {adminData: [adminData, setAdminData], data:[data, setData] } }>
             <Switch>
+
+              <Route exact path="/">
+                <Home />
+              </Route>
+
+              <Route path="/cart">
+                <MyCart />
+              </Route>
+
+              <Route path="/about">
+                <About />
+              </Route>
+
+              <Route path="/profile/edit">
+                <EditProfile />
+              </Route>
+
+              {% if request.user.is_superuser %}
+              
+                <Route path="/profile/:phone">
+                  <Profile isForAdmin={true}/>
+                </Route>
+
+                <Route path="/admin-panel">
+                  <AdminPage />
+                </Route>
+
+                <Route path="/foods/update/:id">
+                  <ManageFoods />
+                </Route>
+
+                <Route path="/foods/create/new">
+                  <ManageFoods />
+                </Route>
+                
+                <Route path="/orders/:id">
+                  <OrderPage />
+                </Route>
+                
+              {% endif %}
+
+              <Route path="/profile">
+                <Profile />
+              </Route>
+              
+              <Route path="/foods/:slug">
+                <BuySection />
+              </Route>
 
               <Route path="/accounts/sign-in">
                 <Auth page="Sign-in" />
