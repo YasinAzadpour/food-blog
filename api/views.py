@@ -1,8 +1,10 @@
 import json
+from django.http import Http404
 
 import numpy as np
 from accounts.forms import UpdateUser,SignUpForm
-from django.contrib.auth import get_user_model, login, authenticate
+from django.contrib.auth import get_user_model, login, authenticate, logout
+from django.contrib.auth.forms import PasswordChangeForm
 from django.core.exceptions import ObjectDoesNotExist
 from django.http.response import JsonResponse
 from django.middleware import csrf
@@ -11,6 +13,7 @@ from accounts.models import Token
 from home.forms import *
 from home.models import *
 from PIL import Image
+from django.contrib.sessions.models import Session
 import random
 
 
@@ -50,7 +53,8 @@ def sign_up(request):
         
         if form.is_valid():
             user = form.save()
-            print(Token.send_to_user(user).code)
+            print(f"[ {Token.send_to_user(user).code } ] send to user")
+            # TODO: send to user
 
         return JsonResponse(clean_json_errors(form)|{'csrfmiddlewaretoken': csrf.get_token(request)})
 
@@ -89,7 +93,7 @@ def resend_token(request):
         # delete all previus code 
         Token.objects.filter(user=this_user).delete()
         # send new code to user
-        print(Token.send_to_user(this_user).code)
+        print(f"[ {Token.send_to_user(this_user).code } ] send to user")
         # TODO: send code to user
         
         return JsonResponse({'result': 'ok'})
@@ -115,10 +119,65 @@ def edit_profile(request):
                 profile = np.array(Image.open(profile))
                 print(user.crop_profile(profile))
 
-        data = clean_json_errors(form)|{'user': user.to_json()}
+        data = clean_json_errors(form)|{'me': user.to_json()}
         return JsonResponse(data)
 
     return JsonResponse({'result': 'error'})
+
+
+@require_POST
+def change_password(request):
+    request.POST = extract_data_from_form(request.POST)
+
+    form = PasswordChangeForm(request.user,request.POST)
+    
+    if form.is_valid():
+        user = form.save()
+        login(request,user)
+
+    return JsonResponse(clean_json_errors(form)|{'csrfmiddlewaretoken': csrf.get_token(request)})
+
+@require_POST
+def log_out(request):
+    logout(request) 
+    return JsonResponse({'result': 1})
+
+@require_POST
+def delete_account(request):
+    user = request.user
+    if user.is_authenticated:
+        password = request.POST.get('password')
+        is_valid = user.check_password(password)
+
+        if is_valid:
+            user.delete()
+            return JsonResponse({'result': 1})
+
+        return JsonResponse({'result': 0,'password': 'Incurrect password.'})
+        
+    return JsonResponse({'result': 0})
+
+@require_POST
+def kill_all_other(request):
+    user = request.user
+    if user.is_authenticated:
+        my_session_key = request.session.session_key
+        for s in Session.objects.exclude(session_key=my_session_key):
+            data = s.get_decoded()
+            if data.get('_auth_user_id') == str(user.pk):
+                s.delete()
+
+        return JsonResponse({'result': 1})
+        
+    return JsonResponse({'result': 0})
+
+@require_POST
+def me(request):
+    user = request.user
+    if user.is_authenticated:
+        return JsonResponse({'result': 1, 'me': user.to_json()})
+
+    return JsonResponse({'result': 0,'me': {}})
 
 
 @require_POST
@@ -134,161 +193,20 @@ def send_feedback(request):
     return JsonResponse({'result': 'error'})
 
 @require_POST
-def mark_feedback_as_read(request):
-    try:
-        id = request.POST['id']
-
-        assert request.user.is_superuser
-        
-        feedback = Feedback.objects.get(id=id)
-        feedback.is_read = True
-        feedback.save()
-
-        feedbacks  = [f.to_json() for f in Feedback.objects.filter(is_read=False)]
-
-        return JsonResponse({'result': 'ok', 'feedbacks': feedbacks})
-
-    except:
-        return JsonResponse({'result': 'error'})
-
-
-@require_POST
-def create_categroy(request):
-    try:
-        assert request.user.is_superuser
-        form = CategoryForm(request.POST)
-
-        if form.is_valid():
-            form.save()
-
-        categories = list(Category.objects.all().values())
-        return JsonResponse(clean_json_errors(form)|{"categories": categories})
-        
-    except:
-        return JsonResponse({"result": "error"})
-   
-@require_POST
-def manage_foods(request, id=None):
-    if request.user.is_superuser:
-        
-        request.POST = extract_data_from_form(request.POST)
-        if id and Food.objects.filter(id=id).exists():
-                food = Food.objects.get(id=id)
-                form = FoodForm(request.POST, request.FILES, instance=food)
-
-        else:
-            form = FoodForm(request.POST, request.FILES)
-
-        if form.is_valid():
-            image = request.FILES.get('image')
-            food = form.save()
-            if image:
-                image = np.array(Image.open(image))
-                food.crop_image(image)
-                
-        all_foods = [f.to_json() for f in Food.objects.all()]
-        return JsonResponse(clean_json_errors(form)|{"foods": all_foods})
-
-    return JsonResponse({'result': 'error'})
-
-@require_POST
-def remove_food(request):
-    try:
-        id = request.POST['id']
-
-        assert request.user.is_superuser
-        
-        Food.objects.get(id=id).delete()
-        all_foods = [f.to_json() for f in Food.objects.all()]
-
-        return JsonResponse({'result': 'ok',"foods": all_foods})
-
-    except:
-        return JsonResponse({'result': 'error'})
-
-@require_POST
-def remove_user(request):
-    try:
-        id = request.POST['id']
-
-        assert request.user.is_superuser
-        assert request.user.id != id
-        
-        User.objects.get(id=id).delete()
-
-        allUsers = [u.to_json() for u in User.objects.all()]
-
-        return JsonResponse({'result': 'ok', 'allUsers': allUsers})
-
-    except:
-        return JsonResponse({'result': 'error'})
-
-@require_POST
-def get_user_data(request, phone):
-    try:
-
-        assert request.user.is_superuser
-        
-        user = User.objects.get(phone=phone).to_json()
-
-        return JsonResponse({'result': 'ok'} | user)
-
-    except:
-        return JsonResponse({'result': 'error'})
-
-@require_POST
-def refresh(request):
-    # try:
-    user = request.user
-    data = {'main': {},'admin': {}, 'result': 'ok'}
-    data['main']['sitename'] = "Chef"
-    data['main']['tel'] = Link.get_tel()
-    data['main']['csrfmiddlewaretoken'] = csrf.get_token(request)
-    data['main']['links']= Link.get_tel()
-    data['main']['about'] = AboutUs.get_last()
-    data['main']['feedbacks']= [f.to_json() for f in Feedback.objects.filter(is_read=True)[:5]]
-    data['main']['reccomendeds']= [f.to_json() for f in Food.objects.all().order_by("-id")[:5]]
-    data['main']['foods'] = [c.to_json() for c in Category.objects.all()]
-
-    if user.is_superuser:
-        data['admin']['categories']= [{"id":c.id, "name": c.name} for c in Category.objects.all()]
-        # TODO: use real data
-        data['admin']['income'] = {
-            "weak": {
-                "data": [random.randint(.5e6,1e6) for _ in range(7)],
-                "labels": ["SAT","SUN","MON","TUE","WED","THU","FRI"],
-            },
-            "month": {
-                "data": [random.randint(1e6,5e6) for _ in range(30)],
-                "labels": list(range(1,31))
-            },
-            "year": {
-                "data": [random.randint(10e6,50e6) for _ in range(3)],
-                "labels": [2019, 2020, 2021],
-            }
-        }
-        data['admin']['users'] = [u.to_json() for u in User.objects.exclude(is_superuser=True, id=request.user.id)]
-        data['admin']['feedbacks'] = [f.to_json() for f in Feedback.objects.filter(is_read=False)]
-        data['admin']['foods'] = [f.to_json() for f in Food.objects.all()]
-        data['admin']['orders'] = User.get_avalable_orders()
-
-    if request.user.is_authenticated:
-        data['main']['user'] = user.to_json()
-        data['main']['likedFoods'] = [f.id for f in user.liked_foods.all()]
-        data['main']['cart'] = [{"quantity": o.quantity}|o.food.to_json() for o in user.orders]
-        data['main']['cartPaid'] = user.cart.paid
-
-    else:
-        data['main']['user'] = {}
-        data['main']['likedFoods'] = []
-        data['main']['cart'] = []
-        data['main']['cartPaid'] = False
-
+def home(request):
+    user = request.user if request.user.is_authenticated else None
+    is_home = request.POST.get('all',True)
+    data = {'result': 1}
+    data['tel'] = Link.get_tel()
+    data['links']= [l.to_json() for l in Link.objects.exclude(name='tel')]
+    data['me'] = user.to_json() if user else {}
+    # data['csrfmiddlewaretoken'] = csrf.get_token(request)
+    if is_home:
+        data['feedbacks']= [f.to_json() for f in Feedback.objects.filter(is_read=True)[:5]]
+        data['reccomendeds']= [f.to_json() for f in Food.objects.all().order_by("-id")[:15]]
+        data['foods'] = [c.to_json(user) for c in Category.objects.all()]
 
     return JsonResponse(data)
-
-    # except:
-    #     return JsonResponse({'result': 'error'})
 
 @require_POST
 def deliver_cart(request):
@@ -297,10 +215,10 @@ def deliver_cart(request):
         cart = Cart.objects.get(id=request.POST['id'])
         cart.delivered = True
         cart.save()
-        return JsonResponse({"result": "ok", "orders": User.get_avalable_orders()})
+        return JsonResponse({"result": 1})
 
     except:
-        return JsonResponse({'result': 'error'})
+        return JsonResponse({'result': 0})
 
 @require_POST
 def pay_cart(request):
@@ -320,17 +238,16 @@ def pay_cart(request):
 
 @require_POST
 def buy(request):
-    try:
+    # try:
 
-        assert request.user.is_authenticated
+    if request.user.is_authenticated:
         food_id = request.POST['id']
         food_quantity = request.POST['quantity']
         cart = request.user.manage_orders(food_id, food_quantity)
-        cart = [{"quantity": i.quantity}|i.food.to_json() for i in cart]
-        return JsonResponse({"result": "ok", "cart": cart})
+        return JsonResponse({"result": 1})
 
-    except:
-        return JsonResponse({"result": "error"})
+    return JsonResponse({"result": 0})
+    # except:
 
 @require_POST
 def like(request):
@@ -339,13 +256,34 @@ def like(request):
         food_id = request.POST["id"]
         request.user.like_food(food_id)
         data = {
-            "result": "ok",
-            "likedFoods": [f.id for f in request.user.liked_foods.all()]
+            "result": 1,
+            # "likedFoods": [f.id for f in request.user.liked_foods.all()]
         }
         return JsonResponse(data)
 
     except:
-        return JsonResponse({"result": "error"})
+        return JsonResponse({"result": 1})
+
+
+@require_POST
+def about_us(request):
+    about = AboutUs.get_last()
+    return JsonResponse({'result': 1}|about)
+
+@require_POST
+def get_food(request, slug):
+    try:
+        data  = {'result': 1}
+        user =request.user
+        food = Food.objects.get(slug=slug)
+        if user.is_authenticated:
+            data['paid'] = user.orders.filter(food=food).exists()
+            data['quantity'] = user.orders.get(food=food).quantity if data['paid'] else 1
+        return JsonResponse(data|food.to_json())
+    except Food.DoesNotExist:
+        return Http404
+
+
 
 def clean_json_errors(form):
 
@@ -366,3 +304,47 @@ def extract_data_from_form(data):
         newData[key] = value[0] if type(value) == list else value
     
     return newData
+
+@require_POST
+def admin_data(request):
+    user = request.user
+    data = {}
+    if user.is_superuser:
+        # TODO: use real data
+        data['income'] = {
+            "weak": {
+                "data": [random.randint(.5e6,1e6) for _ in range(7)],
+                "labels": ["SAT","SUN","MON","TUE","WED","THU","FRI"],
+            },
+            "month": {
+                "data": [random.randint(1e6,5e6) for _ in range(30)],
+                "labels": list(range(1,31))
+            },
+            "year": {
+                "data": [random.randint(10e6,50e6) for _ in range(3)],
+                "labels": [2019, 2020, 2021],
+            }
+        }
+
+        data['orders'] = User.get_avalable_orders()
+        return JsonResponse({'result': 1}|data)
+
+    return JsonResponse({'result': 0})
+
+@require_POST
+def get_order(request, id):
+    try:
+        assert request.user.is_superuser
+        cart = Cart.objects.get(id=id)
+        return JsonResponse({"result": 1,'cart': cart.to_json()})
+
+    except:
+        return JsonResponse({'result': 0})
+
+@require_POST
+def my_cart(request):
+    user = request.user
+    if user.is_authenticated:
+        return JsonResponse({"result": 1,'cart': user.cart.to_json()})
+
+    return JsonResponse({'result': 0})

@@ -15,5 +15,5 @@ class CategoryForm(ModelForm):
 class FeedbackForm(ModelForm):
     class Meta:
         model = Feedback
-        fields = ('user', 'text')
+        fields = ('user', 'text','stars')
 

@@ -28,89 +28,39 @@
 
   <body class="overflow-x-hidden" id="root">
     <div class="flex items-center justify-center w-full h-[100vh]">
-      <div class="loader text-[3px] border-l-gray-900 border-gray-300"></div>
+      <span>loading...</span>
     </div>
   </body>
   <script type="text/jsx">
     const Context = createContext();
-
+    const token = "{{ csrfmiddlewaretoken }}";
     const App = () => {
-      const [adminData, setAdminData] =  useState({});
-      const [data, setData] = useState({csrfmiddlewaretoken: "{{ csrfmiddlewaretoken }}"});
-      const [isReady, setIsReady] = useState(false);
-
-      const updateApp = () =>{
-        $.ajax({
-          method: "POST",
-          url: "/api/refresh",
-          data: {csrfmiddlewaretoken: data.csrfmiddlewaretoken},
-          success: (r) => {
-            console.log(r);
-            setData(r.main);
-            setAdminData(r.admin);
-            setIsReady(true);
-          },
-        });
-      }
-
-      useEffect(() => {
-        updateApp();
-        setInterval(() => {
-          updateApp();
-        }, (1000 * 10) );
-      },[1]);
-
+      const [data, setData] = useState({csrfmiddlewaretoken: token, me:{}});
+      const [isReady, setIsReady] = useState(true);
 
       return (
         <Router>
-
-          {isReady
-          ?(<Context.Provider value={ {adminData: [adminData, setAdminData], data:[data, setData] } }>
+          <Context.Provider value={ {data:[data, setData] } }>
+            <HeaderSection  />
             <Switch>
 
               <Route exact path="/">
                 <Home />
               </Route>
-
-              <Route path="/cart">
-                <MyCart />
-              </Route>
-
+              
               <Route path="/about">
                 <About />
               </Route>
 
-              <Route path="/profile/edit">
-                <EditProfile />
+              <Route path="/me/settings">
+                <SettingsView />
               </Route>
 
               {% if request.user.is_superuser %}
-              
-                <Route path="/profile/:phone">
-                  <Profile isForAdmin={true}/>
-                </Route>
-
                 <Route path="/admin-panel">
                   <AdminPage />
                 </Route>
-
-                <Route path="/foods/update/:id">
-                  <ManageFoods />
-                </Route>
-
-                <Route path="/foods/create/new">
-                  <ManageFoods />
-                </Route>
-                
-                <Route path="/orders/:id">
-                  <OrderPage />
-                </Route>
-                
               {% endif %}
-
-              <Route path="/profile">
-                <Profile />
-              </Route>
               
               <Route path="/foods/:slug">
                 <BuySection />
@@ -125,13 +75,12 @@
               </Route>
               
             </Switch>
-          </Context.Provider>)
-          :(
-            <div className="flex items-center justify-center w-full h-[100vh]">
-              <div className="loader text-[3px] border-l-gray-900 border-gray-300"></div>
+            <FooterSection  />
+          </Context.Provider>
+          <div id="msgContainer" className="transition-all bottom-[20%] fixed flex items-center w-screen justify-center right-0 opacity-0 pointer-events-none z-30">  
+            <div id="msg" className="px-6 py-2 rounded-full bg-green-400 text-white">
             </div>
-          )}
-
+          </div>
         </Router>
       );
     }; 

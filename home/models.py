@@ -14,14 +14,29 @@ class Cart(models.Model):
     address = models.CharField(max_length=100, default='')
     # TODO: use map
 
+    def to_json(self):
+        items = [item.to_json() for item in self.orders.all()]
+        data = {
+                "id": self.id,
+                "items": items,
+                "price": sum([i["price"]*i["quantity"] for i in items]),
+                "address": self.address,
+                "user": self.user.to_json(),
+                "paid": self.paid,
+        }
+        return data
+        
     def __str__(self):
         return f"{self.user.phone}({'delivered' if self.delivered else 'not-delivered'})"
 
 
 class Order(models.Model):
-    cart = models.ForeignKey('home.Cart', on_delete=models.CASCADE)
+    cart = models.ForeignKey('home.Cart', on_delete=models.CASCADE,related_name="orders")
     food = models.ForeignKey('home.Food', on_delete=models.CASCADE)
     quantity = models.IntegerField(default=1)
+
+    def to_json(self):
+        return self.food.to_json()|{"quantity":self.quantity}
 
     def __str__(self):
         return f"{self.cart.user.phone}[{self.food.name}({self.quantity})]"
@@ -33,11 +48,11 @@ class Category(models.Model):
     def __str__(self):
         return self.name
 
-    def to_json(self):
+    def to_json(self,user):
         this_c = {}
         this_c['id'] = self.id
         this_c['title'] = self.name
-        this_c['foods'] = [f.to_json() for f in self.food_set.all()]
+        this_c['foods'] = [f.to_json(user) for f in self.food_set.all()]
         return this_c
 
 
@@ -53,41 +68,8 @@ class Food(models.Model):
 
     def __str__(self):
         return f"{self.name}"
-    
-    def crop_image(self, img, ColorConversionCode=cv2.COLOR_BGR2RGB):
-        '''
-        output-size : 1500*500
-        output-path : foods/(self.id)/(self.id)-image.png
-        '''
-        try:
-            imageY, imageX = img.shape[0], img.shape[1]
 
-            width = imageX
-            height = int(width/3)
-            x = 0
-            y = int((imageY/2)-(height/2))
-
-            img = img[y:y+height, x:x+width]
-            img = cv2.cvtColor(img, ColorConversionCode)
-            img = cv2.resize(img, settings.FOOD_IMAGE_SIZE)
-
-            path = f'{settings.FOOD_DATA_PATH}/{self.pk}/'
-            if not os.path.exists(path):
-                os.mkdir(path)
-            path += f'{self.pk}-image.png'
-
-            self.image.delete()
-            cv2.imwrite(path, img)
-
-            self.image = files.File(open(path, 'rb')).name.replace('web/media/', '')
-
-            self.save()
-            return True
-
-        except:
-            return False
-
-    def to_json(self):
+    def to_json(self,user=None):
         data = {
             'id': self.id,
             'name': self.name,
@@ -98,6 +80,7 @@ class Food(models.Model):
             'url': f"/foods/{self.slug}",
             'image': self.image.url,
             'category': self.category.id,
+            'liked': self in user.liked_foods.all() if user else False
         }
         return data
 
@@ -112,6 +95,7 @@ class Link(models.Model):
 
     def to_json(self):
         data = {"id": self.id}
+        data["name"] = self.name
         if self.url:
             data['url'] = self.url
         else:
@@ -160,6 +144,7 @@ class Feedback(models.Model):
     user = models.ForeignKey('accounts.MyUser', on_delete=models.CASCADE)
     text = models.CharField(max_length=200)
     date = models.DateTimeField(auto_now=True)
+    stars = models.IntegerField(default=1)
     is_read =  models.BooleanField(default=False)
 
     def __str__(self):
@@ -169,6 +154,7 @@ class Feedback(models.Model):
         data = {
             'id': self.id,
             'text': self.text,
+            'stars': self.stars,
             'user__id': self.user.id,
             'user__name': self.user.name,
             'user__phone': self.user.phone.as_e164,

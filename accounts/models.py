@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 import cv2
 from django.conf import settings
@@ -103,15 +104,15 @@ class MyUser(AbstractUser):
 
         orders = []
         for c in Cart.objects.filter(delivered=False, paid=True):
-            items = [item.food.to_json()|{"quantity":item.quantity} for item in Order.objects.filter(cart=c)]
-            this_order = {
-                "id": c.id,
-                "items": items,
-                "price": sum([i["price"]*i["quantity"] for i in items]),
-                "address": c.address,
-                "user": c.user.to_json(),
-            }
-            orders.append(this_order)
+            # items = [item.food.to_json()|{"quantity":item.quantity} for item in Order.objects.filter(cart=c)]
+            # this_order = {
+            #     "id": c.id,
+            #     "items": items,
+            #     "price": sum([i["price"]*i["quantity"] for i in items]),
+            #     "address": c.address,
+            #     "user": c.user.to_json(),
+            # }
+            orders.append(c.to_json())
             
         return orders
 
@@ -127,11 +128,12 @@ class MyUser(AbstractUser):
                 order.quantity = quantity
                 order.save()
                 
-        return self.orders
+            return True
+        return False
 
     @property
     def orders(self):
-        orders = Order.objects.filter(cart__delivered=False, cart__user=self)
+        orders = Order.objects.filter(cart=self.cart)
         return orders
 
     @property
@@ -139,18 +141,22 @@ class MyUser(AbstractUser):
         return Cart.objects.get_or_create(user=self, delivered=False)[0]
 
     def like_food(self, id):
-        try:
-            food = self.liked_foods.get(id=id)
+        # try:
+        food = Food.objects.get(id=id)
+        # food = self.liked_foods.get(id=id)
+        if food in self.liked_foods.all():
             self.liked_foods.remove(food)
-            return True
-            
-        except ObjectDoesNotExist:
-            food = Food.objects.get(id=id)
+        else :
             self.liked_foods.add(food)
-            return True
+
+        return True
             
-        except:
-            return False
+        # except ObjectDoesNotExist:
+        #     self.liked_foods.add(food)
+        #     return True
+            
+        # except:
+            # return False
 
     def crop_profile(self, img, ColorConversionCode=cv2.COLOR_BGR2RGB):
         '''
@@ -169,10 +175,10 @@ class MyUser(AbstractUser):
 
             img = cv2.resize(img, settings.USER_PROFILE_IMAGE_SIZE)
 
-            path = f'{settings.USER_DATA_PATH}/{self.pk}/'
+            path = f'{settings.USER_DATA_PATH}/'
             if not os.path.exists(path):
                 os.mkdir(path)
-            path += f'{self.pk}-profile.png'
+            path += f'{uuid4()}.png'
 
             self.profile.delete()
             cv2.imwrite(path, img)
@@ -189,7 +195,6 @@ class MyUser(AbstractUser):
             'id': self.pk,
             'phone': self.phone.as_e164,
             'name': self.name,
-            'email': self.email,
             'profile': self.profile.url if self.profile else '',
             'address': self.address,
             'isStaff': self.is_staff,

@@ -101,3 +101,7 @@ ENV/
 # IDE
 .vscode
 
+# media
+web/media/foods/*
+web/media/users/*
+web/media/about/*
