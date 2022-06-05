@@ -807,6 +807,7 @@ const Category = ({ title, foods, id }) => {
 const BuySection = () => {
   const [food, setFood] = useState({ quantity: 1 });
   const [paid, setPaid] = useState(false);
+  const [is404, setIs404] = useState(false);
   const [data, setData] = useContext(Context).data;
   
   const url = useParams();
@@ -849,10 +850,17 @@ const BuySection = () => {
           setFood({ ...r, ["isReady"]: true });
         }
       },
-      error: () => {
+      error: (xhr) => {
+        if (xhr.status != 404){
         showMsg("An unknown nerwoek error has occurred");
         setTimeout(getFood, 10000);
+      }
       },
+      statusCode: {
+        404: ()=>{
+          setIs404(true);
+        }
+      }
     });
   };
 
@@ -874,7 +882,7 @@ const BuySection = () => {
   return (
     <main className="flex w-full flex-col items-center mt-20">
 
-      {food.isReady ? (
+      {is404?<Page404 />:food.isReady ? (
         <div className="container p-10 flex items-center max-w-[50rem] flex-col justify-center relative">
           <div className="rounded-xl w-full aspect-video sm:min-w-fit sm:max-w-fit flex items-center justify-center overflow-hidden">
             <img
@@ -1926,3 +1934,13 @@ const SettingsView = ({}) => {
     </main>
   );
 };
+
+const Page404 = () =>{
+  return (    
+  <main className="flex flex-col items-center justify-center w-full h-[100vh]">
+  <h1 className="text-[140px] sm:text-[240px] font-bold">404</h1>
+    <p>Sorry, this page not found :(</p>
+    <Link to="/" className="m-4 block px-8 py-4 text-white bg-gray-900 rounded-full font-bold"> Home page </Link>
+  </main>
+)
+}

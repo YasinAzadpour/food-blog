@@ -281,7 +281,7 @@ def get_food(request, slug):
             data['quantity'] = user.orders.get(food=food).quantity if data['paid'] else 1
         return JsonResponse(data|food.to_json())
     except Food.DoesNotExist:
-        return Http404
+        raise Http404
 
 
 
